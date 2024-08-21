@@ -1,31 +1,17 @@
 import express from 'express';
 import { prisma } from './infra/prismaDatabase';
-import { UserRepository } from './infra/repository/userRepository';
-import { CreateUserUseCase } from './application/useCase/createUserUseCase'
+import { UserController } from './infra/http/userController';
 const app = express();
 const port = 3000 || process.env.PORT;
 
+const userController = new UserController();
 app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send('api auth service')
 });
 
-app.post('/register', async (req, res) => {
-  const t = new CreateUserUseCase(new UserRepository())
-
-  const r = await t.execute({
-    email: req.body.email,
-    name: req.body.name,
-    password: req.body.password
-  });
-
-  if (r.error !== null) {
-    res.status(500).json({ message: r.error });
-    return;
-  }
-  res.status(201).json({ message: 'ok' })
-});
+app.post('/register', userController.create);
 
 const server = app.listen(port, () => {
   console.log(`Servidor Auth service rodando na porta ${port}`);

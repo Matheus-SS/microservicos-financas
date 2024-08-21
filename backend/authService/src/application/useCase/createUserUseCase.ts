@@ -1,5 +1,5 @@
 import { UserEntity } from '../entity/userEntity';
-import { IUserRepository } from '../repository/IUserRepository';
+import { DBError, DBUserNotFound, IUserRepository } from '../repository/IUserRepository';
 
 type Input = {
   name: string;
@@ -21,20 +21,30 @@ export class CreateUserUseCase {
   constructor(readonly userRepo: IUserRepository) {
     this._userRepo = userRepo;
   }
-  public async execute(data: Input): Promise<Result<string, Output>> {
+
+  public async execute(data: Input): Promise<Result<DBError | UserFound, Output>> {
     const u = UserEntity.create({
       name: data.name,
       email: data.email,
       password: data.password,
       createdAt: new Date(),
       updatedAt: null
-    })
+    });
 
+    const { value: valUserByEmail, error: errUserByEmail } = await this._userRepo.findByEmail(u.props.email); 
+
+    if (errUserByEmail !== null && errUserByEmail instanceof DBUserNotFound) {
+      return err(new DBError(errUserByEmail.message));
+    }
+
+    if (valUserByEmail !== null && valUserByEmail.id) {
+      return err(new UserFound())
+    }
     const { value, error } = await this._userRepo.create(u);
 
     if (error !== null) {
-      return err(error)
-    };
+      return err(new DBError(error.message))
+    }
 
     return ok({
       id: value.id,
@@ -42,6 +52,15 @@ export class CreateUserUseCase {
       email: value.props.email,
       createdAt: value.props.createdAt,
     })
-    
+  }
+}
+
+type ErrUserFound = 'USER_FOUND';
+export class UserFound extends Error {
+  name: ErrUserFound;
+  constructor() {
+    super();
+    this.message = 'Usuário já existe';
+    this.name = 'USER_FOUND'
   }
 }
