@@ -1,5 +1,5 @@
-import { UserEntity } from '../entity/userEntity';
-import { DBError, DBUserNotFound, IUserRepository } from '../repository/IUserRepository';
+import { UserEntity, ValidationDomain } from '../entity/userEntity';
+import { DBError, IUserRepository } from '../repository/IUserRepository';
 
 type Input = {
   name: string;
@@ -22,8 +22,8 @@ export class CreateUserUseCase {
     this._userRepo = userRepo;
   }
 
-  public async execute(data: Input): Promise<Result<DBError | UserFound, Output>> {
-    const u = UserEntity.create({
+  public async execute(data: Input): Promise<Result<ValidationDomain | DBError | UserFound, Output>> {
+    const { value: u, error: e } = UserEntity.create({
       name: data.name,
       email: data.email,
       password: data.password,
@@ -31,15 +31,20 @@ export class CreateUserUseCase {
       updatedAt: null
     });
 
+    if (e !== null) {
+      return err(new ValidationDomain(e));
+    } 
+
     const { value: valUserByEmail, error: errUserByEmail } = await this._userRepo.findByEmail(u.props.email); 
 
-    if (errUserByEmail !== null && errUserByEmail instanceof DBUserNotFound) {
-      return err(new DBError(errUserByEmail.message));
+    if (errUserByEmail !== null && errUserByEmail instanceof DBError) {
+      return err(new DBError(errUserByEmail.message))
     }
 
-    if (valUserByEmail !== null && valUserByEmail.id) {
+    if (valUserByEmail !== null) {
       return err(new UserFound())
     }
+    
     const { value, error } = await this._userRepo.create(u);
 
     if (error !== null) {
@@ -64,3 +69,4 @@ export class UserFound extends Error {
     this.name = 'USER_FOUND'
   }
 }
+

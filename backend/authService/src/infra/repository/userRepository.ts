@@ -15,7 +15,7 @@ export class UserRepository implements IUserRepository {
         }
       });
 
-      const u =  UserEntity.create({
+      const u =  new UserEntity({
         name: user.name,
         email: user.email,
         password: user.password,
@@ -43,7 +43,7 @@ export class UserRepository implements IUserRepository {
         return err(new DBUserNotFound())
       }
 
-      const u =  UserEntity.create({
+      const u =  new UserEntity({
         name: user.name,
         email: user.email,
         password: user.password,

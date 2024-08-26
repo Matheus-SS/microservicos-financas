@@ -15,31 +15,99 @@ export class UserController {
       password: req.body.password
     });
 
+    const httpRes = new HttpResponseBuilder()
     if (r.error !== null) {
       switch(r.error.name) {
+        case 'VALIDATION_DOMAIN':
+          httpRes
+            .buildResponse(res)
+            .buildStatusCode(http_status.UNPROCESSABLE_CONTENT)
+            .buildMessage(r.error.m)
+            .getResult()
+            .ERROR();
+          break;
         case 'DB_ERROR':
-          res.status(http_status.INTERNAL_SERVER_ERROR).json({ message: 'Erro interno de servidor' });
+          httpRes
+            .buildResponse(res)
+            .buildStatusCode(http_status.INTERNAL_SERVER_ERROR)
+            .buildMessage('Erro interno de servidor')
+            .getResult()
+            .ERROR();
           break;
         case 'USER_FOUND':
-          res.status(http_status.CONFLICT).json({ message: 'Usuário já cadastrado' });
+          httpRes
+            .buildResponse(res)
+            .buildStatusCode(http_status.CONFLICT)
+            .buildMessage('Usuário já cadastrado')
+            .getResult()
+            .ERROR();
           break;
         default:
-          res.status(http_status.INTERNAL_SERVER_ERROR).json({ message: 'Erro interno de servidor' });
+          httpRes
+            .buildResponse(res)
+            .buildStatusCode(http_status.INTERNAL_SERVER_ERROR)
+            .buildMessage('Erro interno de servidor')
+            .getResult()
+            .ERROR();
       }
       return;
     }
-
-    res.status(http_status.CREATE).json({ message: 'ok' })
+    httpRes
+      .buildResponse(res)
+      .buildStatusCode(http_status.CREATE)
+      .buildMessage(r.value)
+      .getResult()
+      .OK();
   }
 }
 
-// HTTP EXCEPTION E UM SERVER RESPONSE CRIAR UM BUILDER PRA ISSO
-// class ServerResponse {
-//   private _statusCode: number;
-//   private _res: Response;
-//   private _error?: Error;
-//   private _message?: string;
-//   constructor(statusCode: number, res: Response, message?:string, error?: Error) {
-    
-//   }
-// }
+class HttpResponse {
+  public res!: Response;
+  public statusCode!: number;
+  public message: any;
+
+  public OK() {
+    return this.res.status(this.statusCode).json({ message: this.message })
+  }
+
+  public ERROR() {
+    if (Array.isArray(this.message)) {
+      return this.res.status(this.statusCode).json({ message: this.message })
+    } else {
+      return this.res.status(this.statusCode).json({ message: { key: "", val: this.message } })
+    }
+  }
+}
+
+interface IHttpResponseBuilder {
+  buildResponse(res: Response): IHttpResponseBuilder;
+  buildStatusCode(statusCode: number): IHttpResponseBuilder;
+  buildMessage(message: any): IHttpResponseBuilder;
+  getResult(): HttpResponse;
+}
+
+class HttpResponseBuilder implements IHttpResponseBuilder {
+  private httpResponse: HttpResponse;
+
+  constructor () {
+    this.httpResponse = new HttpResponse();
+  }
+  public buildResponse(res: Response): IHttpResponseBuilder {
+    this.httpResponse.res = res;
+    return this;
+  }
+
+  public buildStatusCode(statusCode: number): IHttpResponseBuilder {
+    this.httpResponse.statusCode = statusCode;
+    return this;
+  }
+
+  public buildMessage(message: any): HttpResponseBuilder {
+    this.httpResponse.message = message;
+    return this;
+  }
+
+  public getResult(): HttpResponse {
+    return this.httpResponse;
+  }
+}
